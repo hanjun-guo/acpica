@@ -894,6 +894,99 @@ AcpiDmDumpWdat (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpUbrt
+ *
+ * PARAMETERS:  Table               - A UBRT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a UBRT
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpUbrt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Offset = sizeof (ACPI_TABLE_UBRT);
+    ACPI_UBRT_SUBTABLE      *Subtable;
+    ACPI_TABLE_UBRT         *Ubrt;
+    UINT32                  Count;
+    UINT32                  i;
+    const char              *TypeString;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoUbrt);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    Ubrt = ACPI_CAST_PTR (ACPI_TABLE_UBRT, Table);
+    Count = Ubrt->Count;
+
+    /* Subtables */
+
+    Subtable = ACPI_ADD_PTR (ACPI_UBRT_SUBTABLE, Table, Offset);
+
+    for (i = 0; i < Count; i++)
+    {
+        if (Offset + sizeof (ACPI_UBRT_SUBTABLE) > Table->Length)
+        {
+            AcpiOsPrintf ("\n*** Warning: UBRT sub-table %u exceeds table length\n", i);
+            return;
+        }
+
+        AcpiOsPrintf ("\n");
+
+        /* Convert sub-table type to string */
+
+        switch (Subtable->Type)
+        {
+        case ACPI_UBRT_TYPE_UBC:
+
+            TypeString = "UBC Information Table";
+            break;
+
+        case ACPI_UBRT_TYPE_UMMU:
+
+            TypeString = "UMMU Information Table";
+            break;
+
+        case ACPI_UBRT_TYPE_RESERVED_MEM:
+
+            TypeString = "UB Reserved Memory Information Table";
+            break;
+
+        default:
+
+            TypeString = "Unknown";
+            break;
+        }
+
+        AcpiOsPrintf ("[%.4X] Sub-table Type: %s\n", i, TypeString);
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            sizeof (ACPI_UBRT_SUBTABLE), AcpiDmTableInfoUbrtSubtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next subtable */
+
+        Offset += sizeof (ACPI_UBRT_SUBTABLE);
+        Subtable = ACPI_ADD_PTR (ACPI_UBRT_SUBTABLE, Subtable,
+            sizeof (ACPI_UBRT_SUBTABLE));
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpWpbt
  *
  * PARAMETERS:  Table               - A WPBT table

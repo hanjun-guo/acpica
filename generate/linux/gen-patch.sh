@@ -45,7 +45,7 @@ do
 	m) MAINTAINER=$OPTARG;;
 	u) UPSTREAM=yes
 	   if [ "x${LINK}" = "x" ]; then
-		LINK=https://github.com/acpica/acpica/commit/
+		LINK=https://github.com/open-acpica/acpica/commit/
 	   fi;;
 	?) echo "Invalid argument $opt"
 	   usage;;

@@ -585,8 +585,8 @@ ApCheckForGpeNameConflict (
      *       the signature does not get mangled, subsequently avoiding
      *       GpeNumber being a completely different return value from strtoul.
      *
-     *       [1] https://github.com/acpica/acpica/pull/1019#discussion_r2058687704
-     *       [2] https://github.com/acpica/acpica/pull/1019#discussion_r2061953039
+     *       [1] https://github.com/open-acpica/acpica/pull/1019#discussion_r2058687704
+     *       [2] https://github.com/open-acpica/acpica/pull/1019#discussion_r2061953039
      */
 
     ACPI_MOVE_32_TO_32 (Name, Op->Asl.NameSeg);

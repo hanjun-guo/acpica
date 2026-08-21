@@ -853,13 +853,14 @@ typedef struct acpi_cedt_cxims_target_element
 
 /* 3: CXL RCEC Downstream Port Association Structure */
 
-struct acpi_cedt_rdpas {
+typedef struct acpi_cedt_rdpas {
     ACPI_CEDT_HEADER        Header;
     UINT16                  Segment;
     UINT16                  Bdf;
-    UINT8                   Protocol;
     UINT64                  Address;
-};
+    UINT8                   Protocol;
+    UINT8                   Reserved[3];
+} ACPI_CEDT_RDPAS;
 
 /* Masks for bdf field above */
 #define ACPI_CEDT_RDPAS_BUS_MASK            0xff00
@@ -2261,7 +2262,8 @@ enum AcpiHestNotifyTypes
     ACPI_HEST_NOTIFY_SEI                = 9,    /* ACPI 6.1 */
     ACPI_HEST_NOTIFY_GSIV               = 10,   /* ACPI 6.1 */
     ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED = 11,   /* ACPI 6.2 */
-    ACPI_HEST_NOTIFY_RESERVED           = 12    /* 12 and greater are reserved */
+    ACPI_HEST_NOTIFY_SSE                = 12,   /* RISC-V SSE */
+    ACPI_HEST_NOTIFY_RESERVED           = 13    /* 13 and greater are reserved */
 };
 
 /* Values for ConfigWriteEnable bitfield above */

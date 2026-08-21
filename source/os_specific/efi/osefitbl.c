@@ -704,10 +704,15 @@ OslTableInitialize (
         return (Status);
     }
 
-    Status = OslAddTableToList (ACPI_SIG_FACS, 0);
-    if (ACPI_FAILURE (Status))
+    if (!(Gbl_Fadt->Flags & ACPI_FADT_HW_REDUCED) ||
+        (Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XFACS && Gbl_Fadt->XFacs) ||
+        (Gbl_Fadt->Header.Length >= MIN_FADT_FOR_FACS && Gbl_Fadt->Facs))
     {
-        return (Status);
+        Status = OslAddTableToList (ACPI_SIG_FACS, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
     }
 
     /* Add all tables found in the memory */

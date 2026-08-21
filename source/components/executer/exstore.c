@@ -453,11 +453,27 @@ AcpiExStoreObjectToIndex (
             break;
 
         case ACPI_TYPE_BUFFER:
-        case ACPI_TYPE_STRING:
 
-            /* Note: Takes advantage of common string/buffer fields */
+            /*
+             * A zero-length buffer has no first element and a NULL
+             * Pointer (see AcpiUtCreateBufferObject). Reject it, as is
+             * done for the buffer-to-integer conversion.
+             */
+            if (!SourceDesc->Buffer.Length)
+            {
+                ACPI_BIOS_EXCEPTION ((AE_INFO, AE_AML_BUFFER_LIMIT,
+                    "Source is a zero-length buffer, no data to store"));
+                return_ACPI_STATUS (AE_AML_BUFFER_LIMIT);
+            }
 
             Value = SourceDesc->Buffer.Pointer[0];
+            break;
+
+        case ACPI_TYPE_STRING:
+
+            /* A String always has a pointer; a null string stores a zero */
+
+            Value = (UINT8) SourceDesc->String.Pointer[0];
             break;
 
         default:

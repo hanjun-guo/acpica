@@ -54,6 +54,13 @@ generate/linux/diffstat-single.txt
 generate/linux/divergence.diff
 generate/linux/divergence-single.diff
 
+generate/efi/acpidump/obj
+generate/efi/bin
+generate/efi/efihello/obj
+source/acpidump.inf
+AcpiPkg.dec
+AcpiPkg.dsc
+
 libraries
 
 tests/aslts/tmp

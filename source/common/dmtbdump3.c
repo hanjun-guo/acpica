@@ -638,6 +638,125 @@ AcpiDmUbrtChecksum (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmValidateUbrt
+ *
+ * PARAMETERS:  Table               - Native UBRT subtable
+ *              Length              - Available bytes in the buffer
+ *              Info                - Selected layout, NULL if unsupported
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Validate the header and record extent before accessing records.
+ *              Unused capacity is included in TotalSize, but not in the extent
+ *              of the fixed fields and counted records.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDmValidateUbrt (
+    const ACPI_UBRT_HEADER   *Table,
+    UINT32                  Length,
+    const ACPI_DM_UBRT_INFO  *Info)
+{
+    UINT32                  Valid;
+    UINT16                  Count;
+
+
+    if (Length < sizeof (*Table) || Table->TotalSize > Length ||
+        Table->RemainingSize > Table->TotalSize)
+    {
+        return (AE_BAD_HEADER);
+    }
+
+    if (!Info)
+    {
+        return (AE_SUPPORT);
+    }
+
+    Valid = Table->TotalSize - Table->RemainingSize;
+    if (Valid < Info->FixedLength)
+    {
+        return (AE_BAD_HEADER);
+    }
+
+    memcpy (&Count, ACPI_ADD_PTR (UINT8, Table, Info->CountOffset),
+        sizeof (Count));
+    if (Valid != Info->FixedLength + Count * Info->EntryLength)
+    {
+        return (AE_BAD_HEADER);
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpUbrtTable
+ *
+ * PARAMETERS:  Buffer              - Native UBRT subtable
+ *              Length              - Available bytes in the buffer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Decode an already loaded subtable. The UBRT root's physical
+ *              Pointer is not dereferenced. Unused capacity is not decoded.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDmDumpUbrtTable (
+    const UINT8             *Buffer,
+    UINT32                  Length)
+{
+    ACPI_UBRT_HEADER        *Table = ACPI_CAST_PTR (ACPI_UBRT_HEADER, Buffer);
+    const ACPI_DM_UBRT_INFO  *Info;
+    ACPI_STATUS             Status;
+    UINT32                  Valid;
+    UINT32                  Offset;
+
+
+    Info = AcpiDmGetUbrtInfo (Buffer, Length);
+    Status = AcpiDmValidateUbrt (Table, Length, Info);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("\n/* Invalid UBRT subtable: %s */\n",
+            AcpiFormatException (Status));
+        return (Status);
+    }
+
+    Valid = Table->TotalSize - Table->RemainingSize;
+
+    Status = AcpiDmDumpTable (Valid, 0, Table, sizeof (*Table),
+        AcpiDmTableInfoUbrtHeader);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    Status = AcpiDmDumpTable (Valid, 0, Table, Info->FixedLength, Info->TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    for (Offset = Info->FixedLength; Offset < Valid; Offset += Info->EntryLength)
+    {
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Valid, Offset,
+            ACPI_ADD_PTR (UINT8, Table, Offset), Info->EntryLength, Info->EntryInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpUbrt
  *
  * PARAMETERS:  Table               - A UBRT table
@@ -660,7 +779,13 @@ AcpiDmDumpUbrt (
     UINT32                  i;
 
 
-    /* Main table */
+    /* The root contains only descriptors, not the addressed table bodies. */
+
+    if (Table->Length < sizeof (ACPI_TABLE_UBRT))
+    {
+        AcpiOsPrintf ("\n**** Truncated UBRT header\n");
+        return;
+    }
 
     Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoUbrt);
     if (ACPI_FAILURE (Status))
@@ -670,6 +795,11 @@ AcpiDmDumpUbrt (
 
     Ubrt = ACPI_CAST_PTR (ACPI_TABLE_UBRT, Table);
     Count = Ubrt->Count;
+    if (Count > (Table->Length - Offset) / sizeof (ACPI_UBRT_SUBTABLE))
+    {
+        AcpiOsPrintf ("\n**** UBRT descriptor count exceeds table length\n");
+        return;
+    }
 
     /* Subtables */
 
@@ -677,12 +807,6 @@ AcpiDmDumpUbrt (
 
     for (i = 0; i < Count; i++)
     {
-        if (Offset + sizeof (ACPI_UBRT_SUBTABLE) > Table->Length)
-        {
-            AcpiOsPrintf ("\n*** Warning: UBRT sub-table %u exceeds table length\n", i);
-            return;
-        }
-
         AcpiOsPrintf ("\n");
 
         Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,

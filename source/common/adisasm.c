@@ -307,6 +307,8 @@ AdDisassembleOneTable (
 {
     ACPI_STATUS             Status;
     ACPI_OWNER_ID           OwnerId;
+    const char              *TableName;
+    UINT32                  NameLength;
 
 
 #ifdef ACPI_ASL_COMPILER
@@ -337,14 +339,14 @@ AdDisassembleOneTable (
 
         /* This is a "Data Table" (non-AML table) */
 
-        AcpiOsPrintf (" * ACPI Data Table [%4.4s]\n *\n",
-            AcpiGbl_CDAT ? (char *) AcpiGbl_CDAT : Table->Signature);
+        TableName = AcpiGbl_CDAT ? (char *) AcpiGbl_CDAT : Table->Signature;
+        NameLength = !AcpiGbl_CDAT && AcpiDmGetUbrtInfo (Table, 16) ? 16 : 4;
+        AcpiOsPrintf (" * ACPI Data Table [%.*s]\n *\n", NameLength, TableName);
         AcpiOsPrintf (" * Format: [HexOffset DecimalOffset ByteLength]  "
             "FieldName : FieldValue (in hex)\n */\n\n");
 
         AcpiDmDumpDataTable (Table);
-        fprintf (stdout, "Acpi Data Table [%4.4s] decoded\n",
-            AcpiGbl_CDAT ? (char *) AcpiGbl_CDAT : Table->Signature);
+        fprintf (stdout, "Acpi Data Table [%.*s] decoded\n", NameLength, TableName);
 
         if (File)
         {

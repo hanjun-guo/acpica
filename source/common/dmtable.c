@@ -724,9 +724,18 @@ AcpiDmDumpDataTable (
 
     /*
      * Handle tables that don't use the common ACPI table header structure.
-     * Currently, these are the FACS, RSDP, S3PT and CDAT.
+     * These include FACS, RSDP, S3PT, CDAT and native UBRT subtables.
      */
-    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_FACS))
+    if (!AcpiGbl_CDAT && AcpiDmGetUbrtInfo (Table, 16))
+    {
+        Length = ACPI_CAST_PTR (ACPI_UBRT_HEADER, Table)->TotalSize;
+        Status = AcpiDmDumpUbrtTable (ACPI_CAST_PTR (UINT8, Table), Length);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+    }
+    else if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_FACS))
     {
         Length = Table->Length;
         Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);

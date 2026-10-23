@@ -17,8 +17,19 @@
 #include "acutils.h"
 #include "acapps.h"
 
+#ifdef ACPI_ASL_COMPILER
+#include "acdisasm.h"
+#endif
+
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("acfileio")
+
+
+/* Header formats returned by the private file reader */
+
+#define AC_HEADER_TYPE_ACPI             0
+#define AC_HEADER_TYPE_CDAT             1
+#define AC_HEADER_TYPE_UBRT_SUBTABLE    2
 
 
 /* Local prototypes */
@@ -28,7 +39,8 @@ AcGetOneTableFromFile (
     char                    *Filename,
     FILE                    *File,
     UINT8                   GetOnlyAmlTables,
-    ACPI_TABLE_HEADER       **Table);
+    ACPI_TABLE_HEADER       **Table,
+    UINT8                   *ReturnHeaderType);
 
 static ACPI_STATUS
 AcCheckTextModeCorruption (
@@ -92,6 +104,7 @@ AcGetAllTablesFromFile (
     ACPI_TABLE_HEADER       *Table = NULL;
     UINT32                  FileSize;
     ACPI_STATUS             Status = AE_OK;
+    UINT8                   HeaderType;
 
 
     File = fopen (Filename, "rb");
@@ -145,7 +158,7 @@ AcGetAllTablesFromFile (
         /* Get one entire ACPI table */
 
         Status = AcGetOneTableFromFile (
-            Filename, File, GetOnlyAmlTables, &Table);
+            Filename, File, GetOnlyAmlTables, &Table, &HeaderType);
 
         if (Status == AE_CTRL_TERMINATE)
         {
@@ -166,7 +179,10 @@ AcGetAllTablesFromFile (
 
 #ifdef ACPI_ASL_COMPILER
 
-        AcpiTbPrintTableHeader (0, Table);
+        if (HeaderType != AC_HEADER_TYPE_UBRT_SUBTABLE)
+        {
+            AcpiTbPrintTableHeader (0, Table);
+        }
 #endif
 
         /* Allocate and link a table descriptor */
@@ -227,6 +243,7 @@ Exit:
  *              File                - Open FILE pointer to Filename
  *              GetOnlyAmlTables    - TRUE if the tables must be AML tables.
  *              ReturnTable         - Where a pointer to the table is returned
+ *              ReturnHeaderType    - Format of the returned table's header
  *
  * RETURN:      Status
  *
@@ -243,7 +260,8 @@ AcGetOneTableFromFile (
     char                    *Filename,
     FILE                    *File,
     UINT8                   GetOnlyAmlTables,
-    ACPI_TABLE_HEADER       **ReturnTable)
+    ACPI_TABLE_HEADER       **ReturnTable,
+    UINT8                   *ReturnHeaderType)
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_TABLE_HEADER       TableHeader;
@@ -252,8 +270,14 @@ AcGetOneTableFromFile (
     UINT32                  TableLength;
     UINT32                  HeaderLength;
     long                    TableOffset = 0;
+#ifdef ACPI_ASL_COMPILER
+    ACPI_UBRT_HEADER        *Ubrt;
+    const ACPI_DM_UBRT_INFO  *UbrtInfo = NULL;
+#endif
+
 
     *ReturnTable = NULL;
+    *ReturnHeaderType = AC_HEADER_TYPE_ACPI;
 
     /* Get the table header to examine signature and length */
     /*
@@ -270,17 +294,39 @@ AcGetOneTableFromFile (
         HeaderLength = sizeof (ACPI_TABLE_HEADER);
     }
 
+    TableOffset = ftell (File);
+    Count = fread (&TableHeader, 1, HeaderLength, File);
+    if (!Count)
+    {
+        return (AE_CTRL_TERMINATE);
+    }
+
+    if (Count != (INT32) HeaderLength)
+    {
+        return (AE_BAD_HEADER);
+    }
+
     Status = AcValidateTableHeader (File, TableOffset);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    TableOffset = ftell (File);
-    Count = fread (&TableHeader, 1, HeaderLength, File);
-    if (Count != (INT32) HeaderLength)
+    if (AcpiGbl_CDAT)
     {
-        return (AE_CTRL_TERMINATE);
+        TableLength = ACPI_CAST_PTR (ACPI_TABLE_CDAT, &TableHeader)->Length;
+        *ReturnHeaderType = AC_HEADER_TYPE_CDAT;
+    }
+#ifdef ACPI_ASL_COMPILER
+    else if ((UbrtInfo = AcpiDmGetUbrtInfo (&TableHeader, HeaderLength)))
+    {
+        TableLength = ACPI_CAST_PTR (ACPI_UBRT_HEADER, &TableHeader)->TotalSize;
+        *ReturnHeaderType = AC_HEADER_TYPE_UBRT_SUBTABLE;
+    }
+#endif
+    else
+    {
+        TableLength = TableHeader.Length;
     }
 
     if (GetOnlyAmlTables)
@@ -301,28 +347,6 @@ AcGetOneTableFromFile (
         }
     }
 
-    /*
-     * Special handling for the CDAT table (both the Length field
-     * and the Checksum field are not in the standard positions).
-     */
-    if (AcpiGbl_CDAT)
-    {
-        TableLength = ACPI_CAST_PTR (ACPI_TABLE_CDAT, &TableHeader)->Length;
-    }
-    else
-    {
-        TableLength = TableHeader.Length;
-    }
-
-    /* Table length must be at least large enough to hold the header */
-
-    if (TableLength < HeaderLength)
-    {
-        fprintf (stderr, "Table length too small for header: 0x%.2X\n",
-            TableLength);
-        return (AE_BAD_HEADER);
-    }
-
     /* Allocate a buffer for the entire table */
 
     Table = AcpiOsAllocate ((ACPI_SIZE) TableLength);
@@ -333,14 +357,16 @@ AcGetOneTableFromFile (
 
     /* Read the entire ACPI table, including header */
 
-    fseek (File, TableOffset, SEEK_SET);
+    if (fseek (File, TableOffset, SEEK_SET))
+    {
+        Status = AE_ERROR;
+        goto ErrorExit;
+    }
     Count = fread (Table, 1, TableLength, File);
 
-    /*
-     * Checks for data table headers happen later in the execution. Only verify
-     * for Aml tables at this point in the code.
-     */
-    if (GetOnlyAmlTables && Count != (INT32) TableLength)
+    /* Never inspect bytes that were not read from the file. */
+
+    if (Count != (INT32) TableLength)
     {
         Status = AE_ERROR;
         goto ErrorExit;
@@ -354,7 +380,26 @@ AcGetOneTableFromFile (
     if (AcpiGbl_CDAT)
     {
         Status = AcpiUtVerifyCdatChecksum ((ACPI_TABLE_CDAT *) Table, TableLength);
-    } else
+    }
+#ifdef ACPI_ASL_COMPILER
+    else if (UbrtInfo)
+    {
+        Ubrt = ACPI_CAST_PTR (ACPI_UBRT_HEADER, Table);
+        Status = AcpiDmValidateUbrt (Ubrt, TableLength, UbrtInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            goto ErrorExit;
+        }
+
+        if (AcpiDmUbrtChecksum (ACPI_CAST_PTR (UINT8, Table),
+            Ubrt->TotalSize - Ubrt->RemainingSize))
+        {
+            fprintf (stderr, "Warning: UBRT subtable %.16s has an invalid checksum\n",
+                Ubrt->Name);
+        }
+    }
+#endif
+    else
     {
         Status = AcpiUtVerifyChecksum (Table, TableLength);
     }
@@ -424,6 +469,7 @@ Exit:
  * FUNCTION:    AcValidateTableHeader
  *
  * PARAMETERS:  File                - Open input file
+ *              TableOffset         - Offset of the table header in the file
  *
  * RETURN:      Status
  *
@@ -449,10 +495,12 @@ AcValidateTableHeader (
     ACPI_TABLE_HEADER       TableHeader;
     ACPI_TABLE_CDAT         *CdatTableHeader = ACPI_CAST_PTR (ACPI_TABLE_CDAT, &TableHeader);
     UINT32                  HeaderLength;
+    UINT32                  TableLength;
     ACPI_SIZE               Actual;
     long                    OriginalOffset;
     UINT32                  FileSize;
     UINT32                  i;
+    BOOLEAN                 StandardHeader = !AcpiGbl_CDAT;
 
 
     ACPI_FUNCTION_TRACE (AcValidateTableHeader);
@@ -489,9 +537,25 @@ AcValidateTableHeader (
         return (AE_ERROR);
     }
 
+    if (AcpiGbl_CDAT)
+    {
+        TableLength = CdatTableHeader->Length;
+    }
+#ifdef ACPI_ASL_COMPILER
+    else if (AcpiDmGetUbrtInfo (&TableHeader, HeaderLength))
+    {
+        TableLength = ACPI_CAST_PTR (ACPI_UBRT_HEADER, &TableHeader)->TotalSize;
+        StandardHeader = FALSE;
+    }
+#endif
+    else
+    {
+        TableLength = TableHeader.Length;
+    }
+
     /* Validate the signature (limited ASCII chars) */
 
-    if (!AcpiGbl_CDAT && !AcpiUtValidNameseg (TableHeader.Signature))
+    if (StandardHeader && !AcpiUtValidNameseg (TableHeader.Signature))
     {
         /*
          * The "-ds cdat" option was not used, and the signature is not valid.
@@ -512,33 +576,18 @@ AcValidateTableHeader (
     /* Validate table length against bytes remaining in the file */
 
     FileSize = CmGetFileSize (File);
-    if (!AcpiGbl_CDAT)
+    if (FileSize == ACPI_UINT32_MAX || TableOffset < 0 ||
+        (UINT64) TableOffset > FileSize || TableLength < HeaderLength ||
+        TableLength > FileSize - (UINT32) TableOffset)
     {
-        /* Standard ACPI table header */
-
-        if (TableHeader.Length > (UINT32) (FileSize - TableOffset))
-        {
-            fprintf (stderr, "Table [%4.4s] is too long for file - "
-                "needs: 0x%.2X, remaining in file: 0x%.2X\n",
-                TableHeader.Signature, TableHeader.Length,
-                (UINT32) (FileSize - TableOffset));
-            return (AE_BAD_HEADER);
-        }
-    }
-    else if (CdatTableHeader->Length > (UINT32) (FileSize - TableOffset))
-    {
-        /* Special header for CDAT table */
-
-        fprintf (stderr, "Table [CDAT] is too long for file - "
-            "needs: 0x%.2X, remaining in file: 0x%.2X\n",
-            CdatTableHeader->Length,
-            (UINT32) (FileSize - TableOffset));
+        fprintf (stderr, "Invalid table length 0x%X at file offset %ld\n",
+            TableLength, TableOffset);
         return (AE_BAD_HEADER);
     }
 
-    /* For CDAT table, there are no ASCII fields in the header, we are done */
+    /* Only standard ACPI headers contain the following ASCII identifiers. */
 
-    if (AcpiGbl_CDAT)
+    if (!StandardHeader)
     {
         return (AE_OK);
     }

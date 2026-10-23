@@ -960,6 +960,11 @@ void
 AcpiDmDumpUbrt (
     ACPI_TABLE_HEADER       *Table);
 
+ACPI_STATUS
+AcpiDmDumpUbrtTable (
+    const UINT8             *Buffer,
+    UINT32                  Length);
+
 void
 AcpiDmDumpViot (
     ACPI_TABLE_HEADER       *Table);
@@ -980,6 +985,12 @@ UINT32
 AcpiDmUbrtChecksum (
     const UINT8             *Buffer,
     UINT32                  Length);
+
+ACPI_STATUS
+AcpiDmValidateUbrt (
+    const ACPI_UBRT_HEADER   *Table,
+    UINT32                  Length,
+    const ACPI_DM_UBRT_INFO  *Info);
 
 
 /*

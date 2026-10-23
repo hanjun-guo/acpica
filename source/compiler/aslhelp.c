@@ -113,6 +113,7 @@ Usage (
     ACPI_OPTION ("-tp",             "Compile tables with flex/bison prototype");
     ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
     ACPI_OPTION ("-T <sig list>|ALL",   "Create ACPI table template/example files");
+    ACPI_OPTION ("",                "  UBRT includes standalone subtable templates");
     ACPI_OPTION ("-T <count>",      "Emit DSDT and <count> SSDTs to same file");
     ACPI_OPTION ("-vt",             "Create verbose template files (full disassembly)");
 

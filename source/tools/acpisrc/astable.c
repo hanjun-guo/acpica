@@ -180,6 +180,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_DESCRIPTOR",                     SRC_TYPE_UNION},
     {"ACPI_DEVICE_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_DEVICE_WALK_INFO",               SRC_TYPE_STRUCT},
+    {"ACPI_DM_UBRT_INFO",                   SRC_TYPE_STRUCT},
     {"ACPI_DMTABLE_DATA",                   SRC_TYPE_STRUCT},
     {"ACPI_DMTABLE_INFO",                   SRC_TYPE_STRUCT},
     {"ACPI_DMTABLE_HANDLER",                SRC_TYPE_SIMPLE},

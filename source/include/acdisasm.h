@@ -99,6 +99,7 @@ typedef enum
     ACPI_DMT_NAME4,
     ACPI_DMT_NAME6,
     ACPI_DMT_NAME8,
+    ACPI_DMT_NAME16,
 
     /* Types that are decoded to strings and miscellaneous */
 
@@ -196,6 +197,19 @@ typedef struct acpi_dmtable_data
     const unsigned char     *Template;
 
 } ACPI_DMTABLE_DATA;
+
+/* Native UBRT subtable layout, shared by the compiler and disassembler */
+
+typedef struct acpi_dm_ubrt_info
+{
+    const char              *Name;
+    UINT32                  FixedLength;
+    UINT32                  EntryLength;
+    UINT32                  CountOffset;
+    ACPI_DMTABLE_INFO        *TableInfo;
+    ACPI_DMTABLE_INFO        *EntryInfo;
+
+} ACPI_DM_UBRT_INFO;
 
 
 typedef struct acpi_op_walk_info
@@ -625,6 +639,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm211[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm23[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm23a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUbrt[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUbrtHeader[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUbrtSubtable[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUefi[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoViot[];
@@ -685,6 +700,15 @@ AcpiDmLineHeader2 (
     UINT32                  ByteLength,
     char                    *Name,
     UINT32                  Value);
+
+
+/*
+ * dmtbinfo2
+ */
+const ACPI_DM_UBRT_INFO *
+AcpiDmGetUbrtInfo (
+    const void              *Buffer,
+    UINT32                  Length);
 
 
 /*
@@ -951,6 +975,11 @@ AcpiDmDumpWpbt (
 void
 AcpiDmDumpXsdt (
     ACPI_TABLE_HEADER       *Table);
+
+UINT32
+AcpiDmUbrtChecksum (
+    const UINT8             *Buffer,
+    UINT32                  Length);
 
 
 /*

@@ -283,6 +283,7 @@ DtCompileDataTable (
     DT_FIELD                **FieldList)
 {
     const ACPI_DMTABLE_DATA *TableData;
+    const ACPI_DM_UBRT_INFO  *UbrtInfo;
     DT_SUBTABLE             *Subtable;
     char                    *Signature;
     ACPI_TABLE_HEADER       *AcpiTableHeader;
@@ -306,8 +307,7 @@ DtCompileDataTable (
 
     /*
      * Handle tables that don't use the common ACPI table header structure.
-     * Currently, these are the FACS and RSDP. Also check for an OEMx table,
-     * these tables have user-defined contents.
+     * These include FACS, RSDP, S3PT, native UBRT subtables and CDAT.
      */
     if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_FACS))
     {
@@ -335,6 +335,12 @@ DtCompileDataTable (
 
         DtSetTableLength ();
         return (Status);
+    }
+    else if ((UbrtInfo = AcpiDmGetUbrtInfo (Signature, strlen (Signature) + 1)))
+    {
+        /* Select native UBRT subtables by Name, not the root's signature. */
+
+        return (DtCompileUbrtSubtable (FieldList, UbrtInfo));
     }
 
     /*

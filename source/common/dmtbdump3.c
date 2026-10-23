@@ -603,6 +603,41 @@ AcpiDmDumpTpm2 (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmUbrtChecksum
+ *
+ * PARAMETERS:  Buffer              - Bytes to sum
+ *              Length              - Number of valid bytes
+ *
+ * RETURN:      Sum of little-endian 32-bit words
+ *
+ * DESCRIPTION: Byte-wise summation accepts unaligned input buffers.
+ *              A final partial word has zero high bytes.
+ *              The caller covers TotalSize - RemainingSize bytes, starting at
+ *              the table header. Separate buffers must start on logical
+ *              32-bit word boundaries within the table.
+ *
+ ******************************************************************************/
+
+UINT32
+AcpiDmUbrtChecksum (
+    const UINT8             *Buffer,
+    UINT32                  Length)
+{
+    UINT32                  Sum = 0;
+    UINT32                  i;
+
+
+    for (i = 0; i < Length; i++)
+    {
+        Sum += (UINT32) Buffer[i] << ((i & 3) * 8);
+    }
+
+    return (Sum);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpUbrt
  *
  * PARAMETERS:  Table               - A UBRT table

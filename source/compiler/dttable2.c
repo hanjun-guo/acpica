@@ -3119,6 +3119,130 @@ DtGetGenericTableInfo (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileUbrtSubtable
+ *
+ * PARAMETERS:  FieldList           - Subtable source fields
+ *              Info                - Native layout selected by the caller
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile an independently addressed UBRT subtable. The root
+ *              Pointer is supplied by firmware, just like FPDT's S3PT Address.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileUbrtSubtable (
+    DT_FIELD                **FieldList,
+    const ACPI_DM_UBRT_INFO  *Info)
+{
+    ACPI_UBRT_HEADER        *Header;
+    DT_FIELD                *HeaderField = *FieldList;
+    DT_SUBTABLE             *Fields;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *Last;
+    ACPI_STATUS             Status;
+    UINT32                  Sum = 0;
+    UINT32                  ValidLength;
+    UINT16                  Count = 0;
+
+
+    Status = DtCompileTable (FieldList, AcpiDmTableInfoUbrtHeader,
+        &AslGbl_RootTable);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    Header = ACPI_CAST_PTR (ACPI_UBRT_HEADER, AslGbl_RootTable->Buffer);
+
+    /* TotalSize includes both valid content and unused capacity. */
+
+    if (Header->RemainingSize > Header->TotalSize ||
+        Header->TotalSize - Header->RemainingSize < Info->FixedLength)
+    {
+        DtFatal (ASL_MSG_INVALID_LENGTH_FIXED, HeaderField,
+            "Invalid UBRT Total Size or Remaining Size");
+        return (AE_BAD_DATA);
+    }
+    ValidLength = Header->TotalSize - Header->RemainingSize;
+
+    Status = DtCompileTable (FieldList, Info->TableInfo, &Fields);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+    DtInsertSubtable (AslGbl_RootTable, Fields);
+    Last = Fields;
+
+    while (*FieldList)
+    {
+        if (Count == ACPI_UINT16_MAX)
+        {
+            DtFatal (ASL_MSG_INVALID_LENGTH_FIXED, *FieldList,
+                "UBRT record count exceeds 16 bits");
+            return (AE_LIMIT);
+        }
+
+        Status = DtCompileTable (FieldList, Info->EntryInfo, &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        Count++;
+
+        /* Each native record contains a whole number of checksum words. */
+
+        Sum += AcpiDmUbrtChecksum (Subtable->Buffer, Subtable->Length);
+
+        /* A flat record list: append in O(1), without rescanning peers. */
+
+        Last->Peer = Subtable;
+        Subtable->Parent = AslGbl_RootTable;
+        Subtable->Depth = Last->Depth;
+        Last = Subtable;
+    }
+
+    /* Fixed-size records must exactly fill the declared valid extent. */
+
+    if (Info->FixedLength + Count * Info->EntryLength != ValidLength)
+    {
+        DtFatal (ASL_MSG_INVALID_LENGTH_FIXED, HeaderField,
+            "UBRT content does not fill Total Size - Remaining Size");
+        return (AE_BAD_DATA);
+    }
+
+    memcpy (Fields->Buffer + Info->CountOffset - sizeof (*Header),
+        &Count, sizeof (Count));
+    Header->Checksum = 0;
+
+    /* Include the updated header and fixed fields, also whole checksum words. */
+
+    Sum += AcpiDmUbrtChecksum (AslGbl_RootTable->Buffer,
+        AslGbl_RootTable->Length);
+    Sum += AcpiDmUbrtChecksum (Fields->Buffer, Fields->Length);
+    Header->Checksum = (UINT32) (0 - Sum);
+
+    /* The padding is already included in TotalSize; do not extend it. */
+
+    if (Header->RemainingSize)
+    {
+        Status = DtCompilePadding (Header->RemainingSize, &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+        DtInsertSubtable (AslGbl_RootTable, Subtable);
+    }
+
+    DtSetTableLength ();
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileUbrt
  *
  * PARAMETERS:  List                - Current field list pointer

@@ -667,6 +667,11 @@ DtCompileUbrt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileUbrtSubtable (
+    DT_FIELD                **FieldList,
+    const ACPI_DM_UBRT_INFO  *Info);
+
+ACPI_STATUS
 DtCompileUefi (
     void                    **PFieldList);
 

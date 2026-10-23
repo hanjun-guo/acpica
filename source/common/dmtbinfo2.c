@@ -2600,4 +2600,152 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoUbrtSubtable[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* UBRT subtables are separate objects, addressed by the root's Pointer. */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoUbrtHeader[] =
+{
+    {ACPI_DMT_NAME16,   ACPI_UBRTH_OFFSET (Name),                   "Table Name", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRTH_OFFSET (TotalSize),              "Total Size", 0},
+    {ACPI_DMT_UINT8,    ACPI_UBRTH_OFFSET (Version),                "Version", 0},
+    {ACPI_DMT_UINT24,   ACPI_UBRTH_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRTH_OFFSET (RemainingSize),          "Remaining Size", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRTH_OFFSET (Checksum),               "Checksum", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static ACPI_DMTABLE_INFO    AcpiDmTableInfoUbrtUbc[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_UBRT0_OFFSET (LocalCnaStart),          "Local CNA Start", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT0_OFFSET (LocalCnaEnd),            "Local CNA End", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT0_OFFSET (LocalEidStart),          "Local EID Start", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT0_OFFSET (LocalEidEnd),            "Local EID End", 0},
+    {ACPI_DMT_UINT8,    ACPI_UBRT0_OFFSET (FeatureSets),            "Feature Sets (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_UBRT0_OFFSET (FeatureSets),            "MMIO Token Value", 0},
+    {ACPI_DMT_FLAG1,    ACPI_UBRT0_OFFSET (FeatureSets),            "MCTP over UB", 0},
+    {ACPI_DMT_UINT24,   ACPI_UBRT0_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0_OFFSET (ClusterMode),            "Cluster Mode", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0_OFFSET (UbcCount),               "UBC Count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static ACPI_DMTABLE_INFO    AcpiDmTableInfoUbrtUbcEntry[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_UBRT0A_OFFSET (InterruptIdStart),      "Interrupt ID Start", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT0A_OFFSET (InterruptIdEnd),        "Interrupt ID End", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT0A_OFFSET (HpaBase),               "HPA Base", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT0A_OFFSET (HpaSize),               "HPA Size", 0},
+    {ACPI_DMT_UINT8,    ACPI_UBRT0A_OFFSET (MemorySizeLimit),       "Memory Size Limit", 0},
+    {ACPI_DMT_UINT8,    ACPI_UBRT0A_OFFSET (DmaCca),                "DMA CCA", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0A_OFFSET (UmmuMapping),           "UMMU Mapping", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0A_OFFSET (ProximityDomain),       "Proximity Domain", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0A_OFFSET (Reserved),              "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT0A_OFFSET (MsgQueueBase),          "MSG Queue Base", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT0A_OFFSET (MsgQueueSize),          "MSG Queue Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0A_OFFSET (MsgQueueDepth),         "MSG Queue Depth", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT0A_OFFSET (MsgQueueInterrupt),     "MSG Queue Interrupt", 0},
+    {ACPI_DMT_UINT8,    ACPI_UBRT0A_OFFSET (MsgQueueInterruptAttr), "MSG Queue Interrupt Attribute (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_UBRT0A_OFFSET (MsgQueueInterruptAttr), "Edge Triggered", 0},
+    {ACPI_DMT_FLAG1,    ACPI_UBRT0A_OFFSET (MsgQueueInterruptAttr), "Active Low", 0},
+    {ACPI_DMT_BUF26,    ACPI_UBRT0A_OFFSET (Reserved1[0]),          "Reserved", 0},
+    {ACPI_DMT_BUF26,    ACPI_UBRT0A_OFFSET (Reserved1[26]),         "Reserved", 0},
+    {ACPI_DMT_BUF7,     ACPI_UBRT0A_OFFSET (Reserved1[52]),         "Reserved", 0},
+    {ACPI_DMT_BUF16,    ACPI_UBRT0A_OFFSET (Guid),                  "UBC GUID", 0},
+    {ACPI_DMT_BUF128,   ACPI_UBRT0A_OFFSET (VendorInfo[0]),         "Vendor Info 0-127", 0},
+    {ACPI_DMT_BUF128,   ACPI_UBRT0A_OFFSET (VendorInfo[128]),       "Vendor Info 128-255", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static ACPI_DMTABLE_INFO    AcpiDmTableInfoUbrtUmmu[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_UBRT1_OFFSET (UmmuCount),              "UMMU Count", 0},
+    {ACPI_DMT_UINT48,   ACPI_UBRT1_OFFSET (Reserved),               "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static ACPI_DMTABLE_INFO    AcpiDmTableInfoUbrtUmmuEntry[] =
+{
+    {ACPI_DMT_UINT64,   ACPI_UBRT1A_OFFSET (BaseAddress),           "Base Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT1A_OFFSET (Size),                  "Size", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT1A_OFFSET (Reserved),              "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT1A_OFFSET (ProximityDomain),       "Proximity Domain", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT1A_OFFSET (Reserved1),             "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT1A_OFFSET (PmuBaseAddress),        "PMU Base Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT1A_OFFSET (PmuSize),               "PMU Size", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT1A_OFFSET (Reserved2),             "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT1A_OFFSET (MinTokenId),            "Min TokenID", 0},
+    {ACPI_DMT_UINT32,   ACPI_UBRT1A_OFFSET (MaxTokenId),            "Max TokenID", 0},
+    {ACPI_DMT_BUF26,    ACPI_UBRT1A_OFFSET (Reserved3),             "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_UBRT1A_OFFSET (VendorId),              "Vendor ID", 0},
+    {ACPI_DMT_BUF32,    ACPI_UBRT1A_OFFSET (VendorInfo[0]),         "Vendor Info 0-31", 0},
+    {ACPI_DMT_BUF32,    ACPI_UBRT1A_OFFSET (VendorInfo[32]),        "Vendor Info 32-63", 0},
+    {ACPI_DMT_BUF16,    ACPI_UBRT1A_OFFSET (VendorInfo[64]),        "Vendor Info 64-79", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static ACPI_DMTABLE_INFO    AcpiDmTableInfoUbrtReservedMem[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_UBRT2_OFFSET (MemoryRangesCount),      "Memory Ranges Count", 0},
+    {ACPI_DMT_UINT48,   ACPI_UBRT2_OFFSET (Reserved),               "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static ACPI_DMTABLE_INFO    AcpiDmTableInfoUbrtMemRange[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_UBRT2A_OFFSET (Flags),                 "Flags", 0},
+    {ACPI_DMT_BUF7,     ACPI_UBRT2A_OFFSET (Reserved),              "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT2A_OFFSET (MemoryBase),            "Memory Base", 0},
+    {ACPI_DMT_UINT64,   ACPI_UBRT2A_OFFSET (MemorySize),            "Memory Size", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+static const ACPI_DM_UBRT_INFO AcpiDmUbrtInfo[] =
+{
+    {"ubc", sizeof (ACPI_UBRT_UBC), sizeof (ACPI_UBRT_UBC_ENTRY),
+        ACPI_OFFSET (ACPI_UBRT_UBC, UbcCount),
+        AcpiDmTableInfoUbrtUbc, AcpiDmTableInfoUbrtUbcEntry},
+    {"ummu", sizeof (ACPI_UBRT_UMMU), sizeof (ACPI_UBRT_UMMU_ENTRY),
+        ACPI_OFFSET (ACPI_UBRT_UMMU, UmmuCount),
+        AcpiDmTableInfoUbrtUmmu, AcpiDmTableInfoUbrtUmmuEntry},
+    {"ub_reserved_mem", sizeof (ACPI_UBRT_RESERVED_MEM), sizeof (ACPI_UBRT_MEM_RANGE),
+        ACPI_OFFSET (ACPI_UBRT_RESERVED_MEM, MemoryRangesCount),
+        AcpiDmTableInfoUbrtReservedMem, AcpiDmTableInfoUbrtMemRange}
+};
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmGetUbrtInfo
+ *
+ * PARAMETERS:  Buffer              - Native Name bytes or source name string
+ *              Length              - Available bytes, including the name's NUL
+ *
+ * RETURN:      Supported native layout, or NULL if the name does not match
+ *
+ * DESCRIPTION: Match a complete name, including its terminator. Bound every
+ *              comparison by the available input; bytes after NUL are padding.
+ *
+ ******************************************************************************/
+
+const ACPI_DM_UBRT_INFO *
+AcpiDmGetUbrtInfo (
+    const void              *Buffer,
+    UINT32                  Length)
+{
+    UINT32                  i;
+    UINT32                  NameLength;
+
+
+    for (i = 0; i < ACPI_ARRAY_LENGTH (AcpiDmUbrtInfo); i++)
+    {
+        NameLength = strlen (AcpiDmUbrtInfo[i].Name) + 1;
+        if (Length >= NameLength &&
+            !memcmp (Buffer, AcpiDmUbrtInfo[i].Name, NameLength))
+        {
+            return (&AcpiDmUbrtInfo[i]);
+        }
+    }
+
+    return (NULL);
+}
+
 /*! [End] no source code translation !*/

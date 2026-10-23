@@ -981,7 +981,7 @@ AcpiDmDumpTable (
     const char              *Name;
     BOOLEAN                 LastOutputBlankLine = FALSE;
     ACPI_STATUS             Status;
-    char                    RepairedName[8];
+    char                    RepairedName[16];
 
 
     if (!Info)
@@ -1133,6 +1133,7 @@ AcpiDmDumpTable (
             break;
 
         case ACPI_DMT_BUF16:
+        case ACPI_DMT_NAME16:
         case ACPI_DMT_UUID:
 
             ByteLength = 16;
@@ -1458,6 +1459,12 @@ AcpiDmDumpTable (
 
             AcpiUtCheckAndRepairAscii (Target, RepairedName, 8);
             AcpiOsPrintf ("\"%.8s\"\n", RepairedName);
+            break;
+
+        case ACPI_DMT_NAME16:
+
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 16);
+            AcpiOsPrintf ("\"%.16s\"\n", RepairedName);
             break;
 
         /* Special Data Types */

@@ -288,6 +288,7 @@ DtGetFieldType (
     case ACPI_DMT_SIG:
     case ACPI_DMT_NAME6:
     case ACPI_DMT_NAME8:
+    case ACPI_DMT_NAME16:
     case ACPI_DMT_STRING:
     case ACPI_DMT_IVRS_UNTERMINATED_STRING:
 
@@ -614,6 +615,7 @@ DtGetFieldLength (
         break;
 
     case ACPI_DMT_BUF16:
+    case ACPI_DMT_NAME16:
     case ACPI_DMT_UUID:
 
         ByteLength = 16;

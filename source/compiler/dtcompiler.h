@@ -105,6 +105,25 @@ typedef struct dt_subtable
 } DT_SUBTABLE;
 
 
+/* Independently stored objects identified within their parent table */
+
+typedef
+ACPI_STATUS (*DT_TEMPLATE_HANDLER) (
+    const UINT8             *Buffer,
+    UINT32                  Length);
+
+typedef struct dt_subtable_template
+{
+    char                    *ParentSignature;
+    char                    *LocalId;
+    char                    *Filename;
+    const UINT8             *Template;
+    UINT32                  Length;
+    DT_TEMPLATE_HANDLER     Handler;
+
+} DT_SUBTABLE_TEMPLATE;
+
+
 /*
  * Globals
  */

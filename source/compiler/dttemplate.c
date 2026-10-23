@@ -34,7 +34,8 @@ static ACPI_STATUS
 DtCreateOneTemplate (
     char                    *Signature,
     UINT32                  TableCount,
-    const ACPI_DMTABLE_DATA *TableData);
+    const ACPI_DMTABLE_DATA  *TableData,
+    const DT_SUBTABLE_TEMPLATE *Subtable);
 
 static ACPI_STATUS
 DtCreateAllTemplates (
@@ -187,10 +188,12 @@ Exit:
  * FUNCTION:    DtCreateOneTemplateFile
  *
  * PARAMETERS:  Signature           - ACPI table signature
+ *              TableCount          - Used for SSDTs in same file as DSDT
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create one template file of the requested signature.
+ * DESCRIPTION: Create the requested table template and its registered
+ *              companion templates. Local names are not ACPI signatures.
  *
  ******************************************************************************/
 
@@ -200,6 +203,7 @@ DtCreateOneTemplateFile (
     UINT32                  TableCount)
 {
     const ACPI_DMTABLE_DATA *TableData;
+    const DT_SUBTABLE_TEMPLATE *Subtable;
     ACPI_STATUS             Status;
 
 
@@ -248,8 +252,32 @@ DtCreateOneTemplateFile (
         return (AE_ERROR);
     }
 
-    Status = DtCreateOneTemplate (Signature, TableCount, TableData);
-    return (Status);
+    /* CDAT has no ACPI signature in its binary header. */
+
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_CDAT))
+    {
+        TableData = NULL;
+    }
+
+    Status = DtCreateOneTemplate (Signature, TableCount, TableData, NULL);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    for (Subtable = DtSubtableTemplates; Subtable->ParentSignature; Subtable++)
+    {
+        if (!strcmp (Signature, Subtable->ParentSignature))
+        {
+            Status = DtCreateOneTemplate (NULL, 0, NULL, Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
+    }
+
+    return (AE_OK);
 }
 
 
@@ -283,13 +311,7 @@ DtCreateAllTemplates (
 
         if (TableData->Template)
         {
-	    if (ACPI_COMPARE_NAMESEG (TableData->Signature, ACPI_SIG_CDAT))
-		/* Special handling of CDAT */
-                Status = DtCreateOneTemplate (TableData->Signature,
-                    0, NULL);
-	    else
-                Status = DtCreateOneTemplate (TableData->Signature,
-                    0, TableData);
+            Status = DtCreateOneTemplateFile (TableData->Signature, 0);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -302,31 +324,31 @@ DtCreateAllTemplates (
      * 1) DSDT/SSDT are AML tables, not data tables
      * 2) FACS and RSDP have non-standard headers
      */
-    Status = DtCreateOneTemplate (ACPI_SIG_DSDT, 0, NULL);
+    Status = DtCreateOneTemplateFile (ACPI_SIG_DSDT, 0);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_SIG_SSDT, 0, NULL);
+    Status = DtCreateOneTemplateFile (ACPI_SIG_SSDT, 0);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_SIG_OSDT, 0, NULL);
+    Status = DtCreateOneTemplateFile (ACPI_SIG_OSDT, 0);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_SIG_FACS, 0, NULL);
+    Status = DtCreateOneTemplateFile (ACPI_SIG_FACS, 0);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_RSDP_NAME, 0, NULL);
+    Status = DtCreateOneTemplateFile (ACPI_RSDP_NAME, 0);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -340,14 +362,16 @@ DtCreateAllTemplates (
  *
  * FUNCTION:    DtCreateOneTemplate
  *
- * PARAMETERS:  Signature           - ACPI signature, NULL terminated.
+ * PARAMETERS:  Signature           - ACPI signature, NULL for a companion.
  *              TableCount          - Used for SSDTs in same file as DSDT
  *              TableData           - Entry in ACPI table data structure.
  *                                    NULL if a special ACPI table.
+ *              Subtable            - Companion template, NULL for a root.
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create one template source file for the requested ACPI table.
+ * DESCRIPTION: Write exactly one template file. A companion is decoded by
+ *              its registered handler, not by probing a global signature.
  *
  ******************************************************************************/
 
@@ -355,7 +379,8 @@ static ACPI_STATUS
 DtCreateOneTemplate (
     char                    *Signature,
     UINT32                  TableCount,
-    const ACPI_DMTABLE_DATA  *TableData)
+    const ACPI_DMTABLE_DATA  *TableData,
+    const DT_SUBTABLE_TEMPLATE *Subtable)
 {
     char                    *DisasmFilename;
     FILE                    *File;
@@ -367,7 +392,7 @@ DtCreateOneTemplate (
     /* New file will have a .asl suffix */
 
     DisasmFilename = FlGenerateFilename (
-        Signature, FILE_SUFFIX_ASL_CODE);
+        Subtable ? Subtable->Filename : Signature, FILE_SUFFIX_ASL_CODE);
     if (!DisasmFilename)
     {
         fprintf (stderr, "Could not generate output filename\n");
@@ -395,7 +420,12 @@ DtCreateOneTemplate (
     AcpiOsPrintf ("/*\n");
     AcpiOsPrintf (ACPI_COMMON_HEADER ("iASL Compiler/Disassembler", " * "));
 
-    if (TableCount == 0)
+    if (Subtable)
+    {
+        AcpiOsPrintf (" * Template for [%4.4s/%s] native subtable",
+            Subtable->ParentSignature, Subtable->LocalId);
+    }
+    else if (TableCount == 0)
     {
         AcpiOsPrintf (" * Template for [%4.4s] ACPI Table",
             Signature);
@@ -408,9 +438,9 @@ DtCreateOneTemplate (
 
     /* Dump the actual ACPI table */
 
-    if (TableData)
+    if (TableData || Subtable)
     {
-        /* Normal case, tables that appear in AcpiDmTableData */
+        /* Static table data, with an explicit handler for a companion */
 
         AcpiOsPrintf (" (static data table)\n");
 
@@ -425,8 +455,31 @@ DtCreateOneTemplate (
                 "  FieldName : HexFieldValue\n */\n");
         }
 
-        AcpiDmDumpDataTable (ACPI_CAST_PTR (ACPI_TABLE_HEADER,
-            TableData->Template));
+        if (Subtable)
+        {
+            Status = Subtable->Handler (Subtable->Template, Subtable->Length);
+            if (ACPI_FAILURE (Status))
+            {
+                fprintf (stderr, "Could not emit template [%4.4s/%s]: %s\n",
+                    Subtable->ParentSignature, Subtable->LocalId,
+                    AcpiFormatException (Status));
+                goto Cleanup;
+            }
+
+            if (AslGbl_VerboseTemplates)
+            {
+                AcpiOsPrintf ("\n%s: Length %u (0x%X)\n\n",
+                    ACPI_RAW_TABLE_DATA_HEADER, Subtable->Length,
+                    Subtable->Length);
+                AcpiUtDumpBuffer (ACPI_CAST_PTR (UINT8, Subtable->Template),
+                    Subtable->Length, DB_BYTE_DISPLAY, 0);
+            }
+        }
+        else
+        {
+            AcpiDmDumpDataTable (ACPI_CAST_PTR (ACPI_TABLE_HEADER,
+                TableData->Template));
+        }
     }
     else
     {
@@ -502,7 +555,33 @@ DtCreateOneTemplate (
         }
     }
 
-    if (TableCount == 0)
+
+Cleanup:
+    if (ferror (File))
+    {
+        fprintf (stderr, "Could not write output file %s\n", DisasmFilename);
+        Status = AE_ERROR;
+    }
+
+    if (fclose (File))
+    {
+        fprintf (stderr, "Could not close output file %s\n", DisasmFilename);
+        Status = AE_ERROR;
+    }
+
+    AcpiOsRedirectOutput (stdout);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    if (Subtable)
+    {
+        fprintf (stdout,
+            "Created subtable template for [%4.4s/%s], written to \"%s\"\n",
+            Subtable->ParentSignature, Subtable->LocalId, DisasmFilename);
+    }
+    else if (TableCount == 0)
     {
         fprintf (stdout,
             "Created ACPI table template for [%4.4s], "
@@ -517,10 +596,7 @@ DtCreateOneTemplate (
             Signature, TableCount, DisasmFilename);
     }
 
-Cleanup:
-    fclose (File);
-    AcpiOsRedirectOutput (stdout);
-    return (Status);
+    return (AE_OK);
 }
 
 

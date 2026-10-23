@@ -955,6 +955,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
 
     {"DT_FIELD",                            SRC_TYPE_STRUCT},
     {"DT_SUBTABLE",                         SRC_TYPE_STRUCT},
+    {"DT_SUBTABLE_TEMPLATE",                 SRC_TYPE_STRUCT},
+    {"DT_TEMPLATE_HANDLER",                 SRC_TYPE_SIMPLE},
     {"DT_WALK_CALLBACK",                    SRC_TYPE_SIMPLE},
     {"DT_TABLE_UNIT",                       SRC_TYPE_STRUCT},
 

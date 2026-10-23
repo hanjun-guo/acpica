@@ -2447,4 +2447,15 @@ const unsigned char TemplateXsdt[] =
     0x00,0x00,0x00,0x00                       /* 00000060    "...."     */
 };
 
+/*
+ * Companion templates. LocalId is scoped to ParentSignature, not an ACPI
+ * signature or a required binary field. Filenames are output labels only.
+ * Handlers receive the actual buffer length instead of inferring it from
+ * a nonstandard table header.
+ */
+static const DT_SUBTABLE_TEMPLATE DtSubtableTemplates[] =
+{
+    {NULL, NULL, NULL, NULL, 0, NULL}
+};
+
 #endif
